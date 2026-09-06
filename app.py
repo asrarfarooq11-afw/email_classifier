@@ -158,18 +158,33 @@ st.markdown(
         box-shadow: 0 8px 30px rgba(61,220,151,0.30);
     }
 
-    .verdict-emoji { font-size: 3rem; }
-    .verdict-headline { font-size: 1.5rem; font-weight: 800; color: white; margin-top: 4px; }
+    .verdict-tag {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: rgba(255,255,255,0.85);
+        border: 1px solid rgba(255,255,255,0.5);
+        border-radius: 999px;
+        padding: 3px 14px;
+        margin-bottom: 10px;
+    }
+    .verdict-headline { font-size: 1.6rem; font-weight: 800; color: white; margin-top: 4px; }
     .verdict-sub { font-size: 0.95rem; color: rgba(255,255,255,0.9); margin-top: 6px; }
 
     .confidence-wrap { margin-top: 14px; font-size: 0.85rem; color: rgba(255,255,255,0.85); }
 
     .stTextArea textarea {
-        background: rgba(255,255,255,0.07) !important;
-        color: #fff !important;
+        background-color: #2a1a4a !important;
+        color: #f4f1ff !important;
+        caret-color: #f4f1ff !important;
         border-radius: 14px !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
+        border: 1px solid rgba(255,255,255,0.25) !important;
         font-size: 1rem !important;
+    }
+    .stTextArea textarea::placeholder {
+        color: #a99bd6 !important;
+        opacity: 1 !important;
     }
 
     .stButton>button {
@@ -255,10 +270,10 @@ if judge_clicked:
             st.markdown(
                 f"""
                 <div class="verdict-card verdict-spam">
-                    <div class="verdict-emoji">💀</div>
-                    <div class="verdict-headline">unfortunately... you got SPAM'd</div>
-                    <div class="verdict-sub">this one's giving scam energy. do not click, do not reply.</div>
-                    {f'<div class="confidence-wrap">confidence: {confidence} spam</div>' if confidence else ''}
+                    <div class="verdict-tag">VERDICT</div>
+                    <div class="verdict-headline">unfortunately... this is SPAM</div>
+                    <div class="verdict-sub">giving scam energy. don't click, don't reply.</div>
+                    {f'<div class="confidence-wrap">{confidence} confident</div>' if confidence else ''}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -268,10 +283,10 @@ if judge_clicked:
             st.markdown(
                 f"""
                 <div class="verdict-card verdict-ham">
-                    <div class="verdict-emoji">✅</div>
+                    <div class="verdict-tag">VERDICT</div>
                     <div class="verdict-headline">congrats, this is HAM</div>
-                    <div class="verdict-sub">certified real one. safe to trust (probably still read carefully lol).</div>
-                    {f'<div class="confidence-wrap">confidence: {confidence} ham</div>' if confidence else ''}
+                    <div class="verdict-sub">certified real one — safe to trust.</div>
+                    {f'<div class="confidence-wrap">{confidence} confident</div>' if confidence else ''}
                 </div>
                 """,
                 unsafe_allow_html=True,
