@@ -1,4 +1,5 @@
 import streamlit as st
+import textwrap
 import pickle
 import re
 import string
@@ -89,7 +90,7 @@ def transform_text(text):
 # CSS
 # ---------------------------------------------------------
 st.markdown(
-    """
+    textwrap.dedent("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Space+Mono:wght@400;700&display=swap');
 
@@ -420,13 +421,13 @@ st.markdown(
     </style>
     """,
     unsafe_allow_html=True
-)
+))
 
 # ---------------------------------------------------------
 # HEADER
 # ---------------------------------------------------------
 st.markdown(
-    """
+    textwrap.dedent("""
     <div class="masthead">
         <div class="tiny">THE DAILY CLASSIFIER · MACHINE LEARNING EDITION</div>
         <div class="title">HAM OR SPAM?</div>
@@ -434,13 +435,13 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
-)
+))
 
 # ---------------------------------------------------------
 # COMIC / STORY
 # ---------------------------------------------------------
 st.markdown(
-    """
+    textwrap.dedent("""
     <div class="comic-strip">
         <div class="scene">
 
@@ -497,7 +498,7 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
-)
+))
 
 # ---------------------------------------------------------
 # INPUT
@@ -542,7 +543,7 @@ if st.button("SUBMIT FOR CLASSIFICATION"):
             )
 
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="verdict">
                 <div class="verdict-kicker">FINAL VERDICT</div>
                 <div class="verdict-word">{verdict}</div>
@@ -550,16 +551,16 @@ if st.button("SUBMIT FOR CLASSIFICATION"):
             </div>
             """,
             unsafe_allow_html=True
-        )
+            ))
 
 # ---------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------
 st.markdown(
-    """
+    textwrap.dedent("""
     <div class="footer-note">
         COUNT VECTORIZER → MULTINOMIAL NAIVE BAYES → CLASSIFICATION
     </div>
     """,
     unsafe_allow_html=True
-)
+))
