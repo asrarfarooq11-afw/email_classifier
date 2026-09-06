@@ -1,566 +1,303 @@
-import streamlit as st
-import textwrap
-import pickle
-import re
 import string
+import pickle
+
+import streamlit as st
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
+# ----------------------------------------------------------------------------
+# PAGE CONFIG (must be the first Streamlit call)
+# ----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Ham or Spam?",
-    page_icon="✉",
-    layout="centered"
+    page_title="Spam or Nah?",
+    page_icon="📬",
+    layout="centered",
 )
 
-# ---------------------------------------------------------
-# NLTK
-# ---------------------------------------------------------
+# ----------------------------------------------------------------------------
+# ONE-TIME SETUP: nltk data, model, vectorizer
+# ----------------------------------------------------------------------------
 @st.cache_resource
-def setup_nltk():
-    resources = [
-        ("tokenizers/punkt", "punkt"),
-        ("tokenizers/punkt_tab", "punkt_tab"),
-        ("corpora/stopwords", "stopwords"),
-    ]
-
-    for path, package in resources:
+def load_nltk():
+    for pkg in ("punkt", "punkt_tab", "stopwords"):
         try:
-            nltk.data.find(path)
+            nltk.data.find(f"tokenizers/{pkg}")
         except LookupError:
             try:
-                nltk.download(package, quiet=True)
+                nltk.download(pkg, quiet=True)
             except Exception:
                 pass
+    # stopwords lives under corpora, not tokenizers — make sure it's there too
+    try:
+        nltk.data.find("corpora/stopwords")
+    except LookupError:
+        nltk.download("stopwords", quiet=True)
 
-    return PorterStemmer()
 
-ps = setup_nltk()
-
-# ---------------------------------------------------------
-# LOAD TRAINED MODEL + VECTORIZER
-# ---------------------------------------------------------
 @st.cache_resource
 def load_artifacts():
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
-
     with open("vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
-
     return model, vectorizer
 
-try:
-    model, cv = load_artifacts()
-except Exception as e:
-    st.error(
-        "Model files could not be loaded. Make sure model.pkl and "
-        "vectorizer.pkl are in the same folder as app.py."
-    )
-    st.stop()
 
-# ---------------------------------------------------------
-# SAME PREPROCESSING USED DURING TRAINING
-# ---------------------------------------------------------
-def transform_text(text):
+load_nltk()
+model, vectorizer = load_artifacts()
+ps = PorterStemmer()
+STOPWORDS = set(stopwords.words("english"))
+
+
+# ----------------------------------------------------------------------------
+# THIS MUST MATCH THE NOTEBOOK EXACTLY — it's the #1 reason deployed spam
+# classifiers give garbage predictions: training preprocesses the text,
+# deployment doesn't, and the vectorizer sees totally different input.
+# ----------------------------------------------------------------------------
+def transform_text(text: str) -> str:
     text = text.lower()
-
-    try:
-        tokens = nltk.word_tokenize(text)
-    except LookupError:
-        # Fallback tokenizer if NLTK's punkt resource is unavailable.
-        tokens = re.findall(r"\b\w+\b", text)
-
-    tokens = [token for token in tokens if token.isalnum()]
-
-    stop_words = set(stopwords.words("english"))
-    tokens = [
-        token for token in tokens
-        if token not in stop_words and token not in string.punctuation
-    ]
-
-    tokens = [ps.stem(token) for token in tokens]
-
+    tokens = nltk.word_tokenize(text)
+    tokens = [t for t in tokens if t.isalnum()]
+    tokens = [t for t in tokens if t not in STOPWORDS and t not in string.punctuation]
+    tokens = [ps.stem(t) for t in tokens]
     return " ".join(tokens)
 
-# ---------------------------------------------------------
-# CSS
-# ---------------------------------------------------------
+
+def predict(message: str):
+    cleaned = transform_text(message)
+    vec = vectorizer.transform([cleaned])
+    pred = model.predict(vec)[0]
+    proba = None
+    if hasattr(model, "predict_proba"):
+        proba = model.predict_proba(vec)[0]  # [P(ham), P(spam)]
+    return pred, proba, cleaned
+
+
+# ----------------------------------------------------------------------------
+# STYLE
+# ----------------------------------------------------------------------------
 st.markdown(
-    textwrap.dedent("""
+    """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Space+Mono:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Poppins:wght@400;600;800&display=swap');
+
+    html, body, [class*="css"]  {
+        font-family: 'Poppins', sans-serif;
+    }
 
     .stApp {
-        background: #eee8da;
-        color: #171717;
+        background: linear-gradient(160deg, #1b1035 0%, #2d1b4e 35%, #3a1c5e 65%, #241242 100%);
+        color: #f4f1ff;
     }
 
-    .block-container {
-        max-width: 1050px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
-    }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
 
-    /* Hide Streamlit chrome */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-
-    .masthead {
+    .hero-title {
+        font-size: 2.6rem;
+        font-weight: 800;
         text-align: center;
-        border-top: 4px solid #171717;
-        border-bottom: 4px solid #171717;
-        padding: 18px 10px 14px 10px;
-        margin-bottom: 18px;
+        background: linear-gradient(90deg, #ff6ec7, #7c5cff, #5ce1e6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0;
     }
 
-    .tiny {
-        font-family: 'Space Mono', monospace;
-        font-size: 11px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
+    .hero-sub {
+        text-align: center;
+        color: #cbbdf5;
+        font-size: 1.05rem;
+        margin-top: 0.2rem;
+        margin-bottom: 1.6rem;
     }
 
-    .title {
-        font-family: 'Libre Baskerville', serif;
-        font-size: clamp(42px, 7vw, 76px);
-        font-weight: 700;
-        letter-spacing: -3px;
-        line-height: 1;
-        margin: 8px 0;
-    }
+    .char-row { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 1.6rem; }
 
-    .subtitle {
-        font-family: 'Space Mono', monospace;
-        font-size: 12px;
-        letter-spacing: 1px;
-        margin-top: 10px;
-    }
-
-    .comic-strip {
-        border: 3px solid #171717;
-        background: #f5f0e4;
-        padding: 25px 20px 18px 20px;
-        margin: 24px 0;
-        box-shadow: 7px 7px 0 #171717;
-    }
-
-    .scene {
-        display: flex;
-        align-items: stretch;
-        justify-content: center;
-        gap: 18px;
-    }
-
-    .character {
+    .char-card {
         flex: 1;
-        min-height: 230px;
-        border: 2px solid #171717;
-        padding: 18px;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        background: #eee8da;
-    }
-
-    .character-label {
-        font-family: 'Space Mono', monospace;
-        font-size: 12px;
-        letter-spacing: 2px;
-        font-weight: 700;
-    }
-
-    .speech {
-        background: #fffdf7;
-        border: 2px solid #171717;
-        border-radius: 45% 45% 45% 12%;
-        padding: 14px;
-        font-family: 'Libre Baskerville', serif;
-        font-size: 15px;
-        line-height: 1.4;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 14px 12px;
         text-align: center;
-        min-height: 78px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        backdrop-filter: blur(6px);
     }
 
-    .cartoon {
-        height: 92px;
-        position: relative;
-        margin: 8px auto;
-        width: 130px;
+    .char-emoji { font-size: 2.4rem; display: block; margin-bottom: 6px; animation: float 2.6s ease-in-out infinite; }
+    .char-card:nth-child(2) .char-emoji { animation-delay: .3s; }
+    .char-card:nth-child(3) .char-emoji { animation-delay: .6s; }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
     }
 
-    .head {
-        position: absolute;
-        width: 58px;
-        height: 58px;
-        border: 3px solid #171717;
-        border-radius: 50%;
-        left: 36px;
-        top: 4px;
-        background: #f4d7b5;
-    }
+    .char-label { font-weight: 700; font-size: 0.85rem; color: #fff; }
+    .char-quote { font-size: 0.78rem; color: #d8cdf7; margin-top: 4px; font-style: italic; }
 
-    .eye-left, .eye-right {
-        position: absolute;
-        width: 6px;
-        height: 8px;
-        background: #171717;
-        border-radius: 50%;
-        top: 25px;
-    }
-
-    .eye-left { left: 50px; }
-    .eye-right { left: 74px; }
-
-    .body {
-        position: absolute;
-        width: 70px;
-        height: 43px;
-        border: 3px solid #171717;
-        border-radius: 45% 45% 8px 8px;
-        left: 30px;
-        top: 61px;
-        background: #d8d0bd;
-    }
-
-    .arm-left, .arm-right {
-        position: absolute;
-        width: 45px;
-        height: 3px;
-        background: #171717;
-        top: 76px;
-    }
-
-    .arm-left {
-        left: 1px;
-        transform: rotate(25deg);
-    }
-
-    .arm-right {
-        right: 1px;
-        transform: rotate(-25deg);
-    }
-
-    .envelope {
-        position: absolute;
-        right: 2px;
-        top: 38px;
-        width: 40px;
-        height: 28px;
-        border: 2px solid #171717;
-        background: #fffdf7;
-        transform: rotate(-8deg);
-    }
-
-    .envelope:after {
-        content: "";
-        position: absolute;
-        width: 25px;
-        height: 2px;
-        background: #171717;
-        left: 5px;
-        top: 11px;
-        transform: rotate(28deg);
-    }
-
-    .magnifier {
-        position: absolute;
-        right: 2px;
-        top: 36px;
-        width: 28px;
-        height: 28px;
-        border: 4px solid #171717;
-        border-radius: 50%;
-    }
-
-    .magnifier:after {
-        content: "";
-        position: absolute;
-        width: 28px;
-        height: 4px;
-        background: #171717;
-        right: -21px;
-        bottom: -13px;
-        transform: rotate(45deg);
-    }
-
-    .vs {
-        align-self: center;
-        font-family: 'Space Mono', monospace;
-        font-weight: 700;
-        font-size: 18px;
-        border: 2px solid #171717;
-        background: #fffdf7;
-        padding: 10px 8px;
-        transform: rotate(-3deg);
-    }
-
-    .judge {
-        margin-top: 20px;
-        border-top: 3px double #171717;
-        padding-top: 17px;
-        text-align: center;
-    }
-
-    .judge-line {
-        font-family: 'Libre Baskerville', serif;
-        font-weight: 700;
-        font-size: 25px;
-    }
-
-    .judge-small {
-        font-family: 'Space Mono', monospace;
-        font-size: 11px;
-        letter-spacing: 1px;
-        margin-top: 7px;
-    }
-
-    .input-label {
-        font-family: 'Space Mono', monospace;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin: 28px 0 7px 0;
-    }
-
-    div[data-testid="stTextArea"] textarea {
-        background: #fffdf7;
-        color: #171717;
-        border: 2px solid #171717;
-        border-radius: 0;
-        font-family: 'Space Mono', monospace;
-        font-size: 14px;
-        box-shadow: 4px 4px 0 #171717;
-    }
-
-    div[data-testid="stTextArea"] textarea:focus {
-        border-color: #171717;
-        box-shadow: 4px 4px 0 #171717;
-    }
-
-    div.stButton > button {
-        width: 100%;
-        border: 2px solid #171717;
-        border-radius: 0;
-        background: #171717;
-        color: #eee8da;
-        font-family: 'Space Mono', monospace;
-        font-weight: 700;
-        letter-spacing: 1px;
-        padding: 13px 10px;
-        margin-top: 14px;
-        box-shadow: 5px 5px 0 #77705f;
-    }
-
-    div.stButton > button:hover {
-        background: #2a2a2a;
-        color: #fffdf7;
-        border-color: #171717;
-    }
-
-    .verdict {
-        margin-top: 30px;
-        border: 3px solid #171717;
-        background: #fffdf7;
+    .verdict-card {
+        border-radius: 20px;
         padding: 28px 22px;
         text-align: center;
-        box-shadow: 7px 7px 0 #171717;
+        margin-top: 1.2rem;
+        animation: pop 0.35s ease-out;
     }
 
-    .verdict-kicker {
-        font-family: 'Space Mono', monospace;
-        font-size: 11px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
+    @keyframes pop {
+        0% { transform: scale(0.9); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
     }
 
-    .verdict-word {
-        font-family: 'Libre Baskerville', serif;
-        font-size: clamp(42px, 8vw, 72px);
+    .verdict-spam {
+        background: linear-gradient(135deg, #ff4d6d, #c9184a);
+        box-shadow: 0 8px 30px rgba(255,77,109,0.35);
+    }
+
+    .verdict-ham {
+        background: linear-gradient(135deg, #3ddc97, #1a936f);
+        box-shadow: 0 8px 30px rgba(61,220,151,0.30);
+    }
+
+    .verdict-emoji { font-size: 3rem; }
+    .verdict-headline { font-size: 1.5rem; font-weight: 800; color: white; margin-top: 4px; }
+    .verdict-sub { font-size: 0.95rem; color: rgba(255,255,255,0.9); margin-top: 6px; }
+
+    .confidence-wrap { margin-top: 14px; font-size: 0.85rem; color: rgba(255,255,255,0.85); }
+
+    .stTextArea textarea {
+        background: rgba(255,255,255,0.07) !important;
+        color: #fff !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        font-size: 1rem !important;
+    }
+
+    .stButton>button {
+        background: linear-gradient(90deg, #ff6ec7, #7c5cff);
+        color: white;
         font-weight: 700;
-        margin: 10px 0;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 28px;
+        font-size: 1rem;
+        transition: transform 0.15s ease;
     }
+    .stButton>button:hover { transform: scale(1.04); color: white; }
 
-    .verdict-text {
-        font-family: 'Space Mono', monospace;
-        font-size: 12px;
-        line-height: 1.7;
-    }
-
-    .footer-note {
-        border-top: 1px solid #171717;
-        margin-top: 35px;
-        padding-top: 12px;
-        text-align: center;
-        font-family: 'Space Mono', monospace;
-        font-size: 10px;
-        letter-spacing: 1px;
-    }
-
-    @media (max-width: 700px) {
-        .scene {
-            flex-direction: column;
-        }
-
-        .vs {
-            margin: -8px auto;
-        }
-
-        .character {
-            min-height: 215px;
-        }
-    }
+    footer, #MainMenu { visibility: hidden; }
     </style>
-    """),
-    unsafe_allow_html=True
+    """,
+    unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------
-# HEADER
-# ---------------------------------------------------------
+# ----------------------------------------------------------------------------
+# HERO
+# ----------------------------------------------------------------------------
+st.markdown('<div class="hero-title">📬 SPAM OR NAH</div>', unsafe_allow_html=True)
 st.markdown(
-    textwrap.dedent("""
-    <div class="masthead">
-        <div class="tiny">THE DAILY CLASSIFIER · MACHINE LEARNING EDITION</div>
-        <div class="title">HAM OR SPAM?</div>
-        <div class="subtitle">ONE MESSAGE. TWO SUSPECTS. ONE FINAL VERDICT.</div>
-    </div>
-    """),
-    unsafe_allow_html=True
+    '<div class="hero-sub">welcome bestie — drop a text and let Naive Bayes read the room 👀</div>',
+    unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------
-# COMIC / STORY
-# ---------------------------------------------------------
 st.markdown(
-    textwrap.dedent("""
-    <div class="comic-strip">
-        <div class="scene">
-
-            <div class="character">
-                <div class="character-label">THE GUEST</div>
-
-                <div class="speech">
-                    “GUEST HAS ARRIVED!<br>
-                    I HAVE A MESSAGE.”
-                </div>
-
-                <div class="cartoon">
-                    <div class="head">
-                        <div class="eye-left"></div>
-                        <div class="eye-right"></div>
-                    </div>
-                    <div class="body"></div>
-                    <div class="arm-left"></div>
-                    <div class="arm-right"></div>
-                    <div class="envelope"></div>
-                </div>
-            </div>
-
-            <div class="vs">VS</div>
-
-            <div class="character">
-                <div class="character-label">THE DETECTIVE</div>
-
-                <div class="speech">
-                    “HAM? SPAM?<br>
-                    BRING ME THE EVIDENCE.”
-                </div>
-
-                <div class="cartoon">
-                    <div class="head">
-                        <div class="eye-left"></div>
-                        <div class="eye-right"></div>
-                    </div>
-                    <div class="body"></div>
-                    <div class="arm-left"></div>
-                    <div class="arm-right"></div>
-                    <div class="magnifier"></div>
-                </div>
-            </div>
-
+    """
+    <div class="char-row">
+        <div class="char-card">
+            <span class="char-emoji">😇</span>
+            <div class="char-label">the ham</div>
+            <div class="char-quote">"hey, running 5 mins late!"</div>
         </div>
-
-        <div class="judge">
-            <div class="judge-line">LET NAIVE BAYES DECIDE.</div>
-            <div class="judge-small">
-                THE MESSAGE GOES IN · THE PROBABILITY COMES OUT
-            </div>
+        <div class="char-card">
+            <span class="char-emoji">😈</span>
+            <div class="char-label">the spam</div>
+            <div class="char-quote">"u WON $$$ click NOW"</div>
+        </div>
+        <div class="char-card">
+            <span class="char-emoji">🧠</span>
+            <div class="char-label">naive bayes</div>
+            <div class="char-quote">"bet. let me cook."</div>
         </div>
     </div>
-    """),
-    unsafe_allow_html=True
+    """,
+    unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------
+# ----------------------------------------------------------------------------
 # INPUT
-# ---------------------------------------------------------
-st.markdown('<div class="input-label">THE MESSAGE UNDER INVESTIGATION</div>',
-            unsafe_allow_html=True)
-
+# ----------------------------------------------------------------------------
 message = st.text_area(
-    "",
-    height=145,
-    placeholder="Type or paste an SMS here...",
-    label_visibility="collapsed"
+    "your message",
+    height=130,
+    placeholder="paste the suspicious text/email here...",
+    label_visibility="collapsed",
 )
 
-# ---------------------------------------------------------
-# CLASSIFY
-# ---------------------------------------------------------
-if st.button("SUBMIT FOR CLASSIFICATION"):
+col1, col2 = st.columns([1, 1])
+with col1:
+    judge_clicked = st.button("judge it 🔨", use_container_width=True)
+with col2:
+    clear_clicked = st.button("clear", use_container_width=True)
 
+if clear_clicked:
+    st.rerun()
+
+# ----------------------------------------------------------------------------
+# RESULT
+# ----------------------------------------------------------------------------
+if judge_clicked:
     if not message.strip():
-        st.warning("Please enter a message before submitting.")
+        st.warning("bestie... you gotta type something first 💀")
     else:
-        processed = transform_text(message)
-        vector = cv.transform([processed])
+        pred, proba, cleaned = predict(message)
 
-        prediction = model.predict(vector)[0]
-
-        # Notebook mapping: ham = 0, spam = 1
-        if prediction == 1:
-            verdict = "SPAM"
-            explanation = (
-                "Naive Bayes has classified this message as spam. "
-                "The message's learned word pattern is more strongly "
-                "associated with the spam class."
+        if pred == 1:
+            confidence = f"{proba[1]*100:.1f}%" if proba is not None else None
+            st.markdown(
+                f"""
+                <div class="verdict-card verdict-spam">
+                    <div class="verdict-emoji">💀</div>
+                    <div class="verdict-headline">unfortunately... you got SPAM'd</div>
+                    <div class="verdict-sub">this one's giving scam energy. do not click, do not reply.</div>
+                    {f'<div class="confidence-wrap">confidence: {confidence} spam</div>' if confidence else ''}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
         else:
-            verdict = "HAM"
-            explanation = (
-                "Naive Bayes has classified this message as ham. "
-                "The message's learned word pattern is more strongly "
-                "associated with the legitimate class."
+            confidence = f"{proba[0]*100:.1f}%" if proba is not None else None
+            st.markdown(
+                f"""
+                <div class="verdict-card verdict-ham">
+                    <div class="verdict-emoji">✅</div>
+                    <div class="verdict-headline">congrats, this is HAM</div>
+                    <div class="verdict-sub">certified real one. safe to trust (probably still read carefully lol).</div>
+                    {f'<div class="confidence-wrap">confidence: {confidence} ham</div>' if confidence else ''}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
-        st.markdown(
-            textwrap.dedent(f"""
-            <div class="verdict">
-                <div class="verdict-kicker">FINAL VERDICT</div>
-                <div class="verdict-word">{verdict}</div>
-                <div class="verdict-text">{explanation}</div>
-            </div>
-            """),
-            unsafe_allow_html=True
-        )
+        with st.expander("see what naive bayes actually saw"):
+            st.code(cleaned if cleaned else "(nothing left after cleaning)", language=None)
 
-# ---------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------
-st.markdown(
-    textwrap.dedent("""
-    <div class="footer-note">
-        COUNT VECTORIZER → MULTINOMIAL NAIVE BAYES → CLASSIFICATION
-    </div>
-    """),
-    unsafe_allow_html=True
-)
+# ----------------------------------------------------------------------------
+# FOOTER / ABOUT
+# ----------------------------------------------------------------------------
+with st.expander("how does this work?"):
+    st.markdown(
+        """
+        This is a **Multinomial Naive Bayes** classifier trained on labeled SMS/email
+        messages (`ham` = 0, `spam` = 1).
+
+        Every message goes through the *exact* same cleanup used during training before
+        it's judged:
+        1. lowercase everything
+        2. tokenize into words
+        3. drop non-alphanumeric tokens
+        4. remove stopwords + punctuation
+        5. stem each word (Porter Stemmer)
+
+        The cleaned text is turned into word-count vectors with a fitted
+        `CountVectorizer`, and Naive Bayes does the rest.
+        """
+    )
