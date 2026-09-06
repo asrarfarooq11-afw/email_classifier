@@ -118,18 +118,31 @@ st.markdown(
         background: rgba(255,255,255,0.06);
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 18px;
-        padding: 14px 12px;
+        padding: 18px 12px 16px;
         text-align: center;
         backdrop-filter: blur(6px);
     }
 
-    .char-emoji { font-size: 2.4rem; display: block; margin-bottom: 6px; animation: float 2.6s ease-in-out infinite; }
-    .char-card:nth-child(2) .char-emoji { animation-delay: .3s; }
-    .char-card:nth-child(3) .char-emoji { animation-delay: .6s; }
+    .char-icon {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        animation: float 3s ease-in-out infinite;
+    }
+    .char-card:nth-child(1) .char-icon { background: rgba(61,220,151,0.15); }
+    .char-card:nth-child(2) .char-icon { background: rgba(255,77,109,0.15); }
+    .char-card:nth-child(3) .char-icon { background: rgba(124,92,255,0.18); }
+
+    .char-card:nth-child(2) .char-icon { animation-delay: .3s; }
+    .char-card:nth-child(3) .char-icon { animation-delay: .6s; }
 
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-8px); }
+        50% { transform: translateY(-6px); }
     }
 
     .char-label { font-weight: 700; font-size: 0.85rem; color: #fff; }
@@ -218,17 +231,37 @@ st.markdown(
     """
     <div class="char-row">
         <div class="char-card">
-            <span class="char-emoji">😇</span>
+            <div class="char-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ddc97" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="5.5" width="19" height="13" rx="2.2"/>
+                    <path d="M3 7l9 6 9-6"/>
+                    <path d="M9.5 15.2l1.8 1.8 3.2-3.4" stroke="#3ddc97"/>
+                </svg>
+            </div>
             <div class="char-label">the ham</div>
             <div class="char-quote">"hey, running 5 mins late!"</div>
         </div>
         <div class="char-card">
-            <span class="char-emoji">😈</span>
+            <div class="char-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4d6d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="5.5" width="19" height="13" rx="2.2"/>
+                    <path d="M3 7l9 6 9-6"/>
+                    <path d="M12 11.5v2.4" stroke="#ff4d6d"/>
+                    <circle cx="12" cy="16.3" r="0.15" stroke="#ff4d6d" stroke-width="2.2"/>
+                </svg>
+            </div>
             <div class="char-label">the spam</div>
             <div class="char-quote">"u WON $$$ click NOW"</div>
         </div>
         <div class="char-card">
-            <span class="char-emoji">🧠</span>
+            <div class="char-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c5cff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="5" r="2"/>
+                    <circle cx="5.5" cy="18" r="2"/>
+                    <circle cx="18.5" cy="18" r="2"/>
+                    <path d="M12 7v4M12 11l-5.2 5M12 11l5.2 5"/>
+                </svg>
+            </div>
             <div class="char-label">naive bayes</div>
             <div class="char-quote">"bet. let me cook."</div>
         </div>
