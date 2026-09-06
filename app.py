@@ -419,9 +419,9 @@ st.markdown(
         }
     }
     </style>
-    """,
+    """),
     unsafe_allow_html=True
-))
+)
 
 # ---------------------------------------------------------
 # HEADER
@@ -433,9 +433,9 @@ st.markdown(
         <div class="title">HAM OR SPAM?</div>
         <div class="subtitle">ONE MESSAGE. TWO SUSPECTS. ONE FINAL VERDICT.</div>
     </div>
-    """,
+    """),
     unsafe_allow_html=True
-))
+)
 
 # ---------------------------------------------------------
 # COMIC / STORY
@@ -496,9 +496,9 @@ st.markdown(
             </div>
         </div>
     </div>
-    """,
+    """),
     unsafe_allow_html=True
-))
+)
 
 # ---------------------------------------------------------
 # INPUT
@@ -549,9 +549,9 @@ if st.button("SUBMIT FOR CLASSIFICATION"):
                 <div class="verdict-word">{verdict}</div>
                 <div class="verdict-text">{explanation}</div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True
-            ))
+        )
 
 # ---------------------------------------------------------
 # FOOTER
@@ -561,6 +561,6 @@ st.markdown(
     <div class="footer-note">
         COUNT VECTORIZER → MULTINOMIAL NAIVE BAYES → CLASSIFICATION
     </div>
-    """,
+    """),
     unsafe_allow_html=True
-))
+)
